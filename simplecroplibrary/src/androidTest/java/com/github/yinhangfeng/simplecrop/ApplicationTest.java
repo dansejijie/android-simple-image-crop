@@ -1,4 +1,4 @@
-package com.github.yinhangfeng.simplecroplibrary;
+package com.github.yinhangfeng.simplecrop;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;

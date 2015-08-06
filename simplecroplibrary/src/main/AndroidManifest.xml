@@ -1,10 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.github.yinhangfeng.simplecroplibrary">
+    package="com.github.yinhangfeng.simplecrop" >
 
-    <application android:allowBackup="true"
-                 android:label="@string/app_name"
-        >
-
+    <application
+        android:allowBackup="true"
+        android:label="@string/app_name" >
+        <activity
+            android:name=".SimpleCropImageActivity"
+            android:label="@string/title_activity_simple_crop_image" >
+        </activity>
     </application>
 
 </manifest>

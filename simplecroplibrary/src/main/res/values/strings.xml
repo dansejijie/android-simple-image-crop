@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">SimpleCropLibrary</string>
+    <string name="title_activity_simple_crop_image">SimpleCropImageActivity</string>
+
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
 </resources>
