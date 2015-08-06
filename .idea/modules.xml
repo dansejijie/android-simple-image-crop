@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/android-simple-image-crop.iml" filepath="$PROJECT_DIR$/android-simple-image-crop.iml" />
+      <module fileurl="file://$PROJECT_DIR$/simplecropexample/simplecropexample.iml" filepath="$PROJECT_DIR$/simplecropexample/simplecropexample.iml" />
+      <module fileurl="file://$PROJECT_DIR$/simplecroplibrary/simplecroplibrary.iml" filepath="$PROJECT_DIR$/simplecroplibrary/simplecroplibrary.iml" />
+    </modules>
+  </component>
+</project>
