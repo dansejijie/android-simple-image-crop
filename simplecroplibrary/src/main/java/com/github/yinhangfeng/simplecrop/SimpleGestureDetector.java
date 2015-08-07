@@ -1,6 +1,7 @@
 package com.github.yinhangfeng.simplecrop;
 
 import android.content.Context;
+import android.support.v4.view.MotionEventCompat;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -20,11 +21,6 @@ public class SimpleGestureDetector {
          * @param y y坐标
          */
         void onDoubleTap(float x, float y);
-
-        /**
-         * 单击事件
-         */
-        void onSingleTap();
 
         /**
          * fling事件
@@ -85,7 +81,7 @@ public class SimpleGestureDetector {
 
             @Override
             public boolean onDoubleTap(MotionEvent e) {// 双击
-                if(DEBUG) Log.d(TAG, "mGestureDetector onDoubleTap");
+                //if(DEBUG) Log.d(TAG, "mGestureDetector onDoubleTap");
                 mOnGestureListener.onDoubleTap(e.getX(), e.getY());
                 return true;
             }
@@ -100,23 +96,29 @@ public class SimpleGestureDetector {
     }
 
     public boolean onTouchEvent(MotionEvent event) {
+        int action = MotionEventCompat.getActionMasked(event);
+        if(action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            lastZoomDistance = 0;
+            mOnGestureListener.onActionUp();
+        }
         if(mGestureDetector.onTouchEvent(event)) {
-            if(DEBUG) Log.i(TAG, "onTouchEvent mGestureDetector handled");
+            //if(DEBUG) Log.i(TAG, "onTouchEvent mGestureDetector handled");
             return true;
         }
 
-        switch(event.getAction()) {
+        float x = event.getX();
+        float y = event.getY();
+
+        switch(action) {
         case MotionEvent.ACTION_DOWN:
-            lastMotionX = event.getX();
-            lastMotionY = event.getY();
+            lastMotionX = x;
+            lastMotionY = y;
             mOnGestureListener.onActionDown();
             break;
         case MotionEvent.ACTION_MOVE:
-            float x = event.getX();
-            float y = event.getY();
-            if(event.getPointerCount() > 1) {
-                float dx = x - event.getX(1);
-                float dy = y - event.getY(1);
+            if(MotionEventCompat.getPointerCount(event) > 1) {
+                float dx = x - MotionEventCompat.getX(event, 1);
+                float dy = y - MotionEventCompat.getY(event, 1);
                 float distance = dx * dx + dy * dy;
                 if(lastZoomDistance > 0) {
                     if(lastZoomDistance != distance) {
@@ -134,10 +136,17 @@ public class SimpleGestureDetector {
             lastMotionX = x;
             lastMotionY = y;
             break;
-        case MotionEvent.ACTION_UP:
-        case MotionEvent.ACTION_CANCEL:
+        case MotionEventCompat.ACTION_POINTER_DOWN:
             lastZoomDistance = 0;
-            mOnGestureListener.onActionUp();
+            break;
+        case MotionEventCompat.ACTION_POINTER_UP:
+            if(MotionEventCompat.getPointerCount(event) == 2) {
+                int upIndex = MotionEventCompat.getActionIndex(event);
+                int activeIndex = upIndex == 0 ? 1 : 0;
+                lastMotionX = MotionEventCompat.getX(event, activeIndex);
+                lastMotionY = MotionEventCompat.getY(event, activeIndex);
+            }
+            lastZoomDistance = 0;
             break;
         }
         return true;

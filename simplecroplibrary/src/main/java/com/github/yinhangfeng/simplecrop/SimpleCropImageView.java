@@ -22,6 +22,7 @@ public class SimpleCropImageView extends View {
 
     static final boolean DEBUG = true;
 
+    private Bitmap bitmap;
     //图片Drawable对象
     private Drawable drawable;
 
@@ -60,7 +61,7 @@ public class SimpleCropImageView extends View {
     private float boundaryBottom = 0;
     //xy方向是否可拖动
     private boolean canDragX = false, canDragY = false;
-    //上下左右可视边界 当前图片必须填满该矩形
+    //上下左右编辑框边界
     private float rectLeft = 0;
     private float rectRight = 0;
     private float rectTop = 0;
@@ -155,7 +156,7 @@ public class SimpleCropImageView extends View {
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
-        setupCanvas();
+        initParams();
     }
 
     @Override
@@ -205,7 +206,7 @@ public class SimpleCropImageView extends View {
     /**
      * 初始化各项参数
      */
-    protected void setupCanvas() {
+    protected void initParams() {
         if(drawable != null) {
             //去除内边距后view宽高
             viewWidth = getWidth();
@@ -215,9 +216,9 @@ public class SimpleCropImageView extends View {
             centerY = viewHeight / 2f;
 
             //图片宽高
-            imageWidth = getImageWidth();
-            imageHeight = getImageHeight();
-            //Log.d(TAG, "setupCanvas imageWidth="+imageWidth+" imageHeight="+imageHeight);
+            imageWidth = bitmap.getWidth();
+            imageHeight = bitmap.getHeight();
+            //Log.d(TAG, "initParams imageWidth="+imageWidth+" imageHeight="+imageHeight);
             //图片半宽高
             int hWidth = Math.round(((float) imageWidth / 2f));
             int hHeight = Math.round(((float) imageHeight / 2f));
@@ -248,43 +249,9 @@ public class SimpleCropImageView extends View {
     }
 
     public void setImageBitmap(Bitmap image) {
-        Log.d(TAG, "setImageBitmap");
+        bitmap = image;
         this.drawable = new BitmapDrawable(getResources(), image);
         requestLayout();
-    }
-
-    /**
-     * 获得图片原始宽度
-     */
-    public int getImageWidth() {
-        if(drawable != null) {
-            return drawable.getIntrinsicWidth();
-        }
-        return 0;
-    }
-
-    /**
-     * 获得图片原始高度
-     */
-    public int getImageHeight() {
-        if(drawable != null) {
-            return drawable.getIntrinsicHeight();
-        }
-        return 0;
-    }
-
-    /**
-     * 设置最小缩放比例
-     */
-    public void setMinScale(float minScale) {
-        this.minScale = minScale;
-    }
-
-    /**
-     * 设置最大缩放比例
-     */
-    public void setMaxScale(float maxScale) {
-        this.maxScale = maxScale;
     }
 
     /**
@@ -310,7 +277,7 @@ public class SimpleCropImageView extends View {
         invalidate();
     }
 
-    public void animationStop() {
+    private void animationStop() {
         if(curAnimation != null) {
             curAnimation.stop();
             curAnimation = null;
@@ -353,6 +320,7 @@ public class SimpleCropImageView extends View {
         float scaleHorizontal = boxWidth / imageWidth;
         float scaleVertical = boxHeight / imageHeight;
         startingScale = minScale = Math.max(scaleHorizontal, scaleVertical);
+        maxScale = Math.max(minScale * 4, 4);
     }
 
     /**
@@ -428,11 +396,11 @@ public class SimpleCropImageView extends View {
     }
 
     /**
-     * 获得双击时缩放比例
+     * 获得双击时相对于当前的缩放比例
      */
     private float getMaxMinZoom() {
-        //Log.d(TAG, "getZoom maxScale="+maxScale+" minScale="+minScale+" scaleAdjust="+scaleAdjust);
-        if(maxScale == minScale) {
+        //Log.d(TAG, "getMaxMinZoom maxScale="+maxScale+" minScale="+minScale+" scaleAdjust="+scaleAdjust);
+        if(maxScale <= minScale) {
             return 1f;
         }
         if(scaleAdjust < (maxScale + minScale) / 2f) {
@@ -446,7 +414,7 @@ public class SimpleCropImageView extends View {
      * 处理拖动
      * @return 该拖动是否处理
      */
-    public boolean handleDrag(float dx, float dy) {
+    private boolean handleDrag(float dx, float dy) {
         //Log.d(TAG, "handleDrag");
         if(!canDragX && !canDragY) {
             return false;
@@ -472,7 +440,7 @@ public class SimpleCropImageView extends View {
      * @param rScale 相对当前缩放比例
      * @return 缩放是否被处理
      */
-    protected boolean handleScale(float midX, float midY, float rScale) {
+    private boolean handleScale(float midX, float midY, float rScale) {
         //Log.d(TAG, "handleScale");
         //获得绝对缩放比例
         float newScale = scaleAdjust * rScale;
@@ -557,18 +525,19 @@ public class SimpleCropImageView extends View {
     }
 
     /**
-     * 将旋转角度规范到90度的整数倍
+     * 将旋转角度规范到90度的整数倍且范围为[0, 360)
      */
     private void normRotate() {
         rotation %= 360f;
-        float remainder = rotation % 90f;
-        if(remainder != 0) {
-            if(remainder < 45f) {
-                rotation -= remainder;
-            } else {
-                rotation = rotation - remainder + 90f;
-            }
+        if(rotation < 0) {
+            rotation += 360f;
         }
+        int ratio = Math.round(rotation / 90f);
+        if(ratio == 4) {
+            ratio = 0;
+        }
+        rotation = ratio * 90f;
+        if(DEBUG) Log.i(TAG, "normRotate end rotation=" + rotation);
     }
 
     /**
@@ -608,80 +577,80 @@ public class SimpleCropImageView extends View {
      * 计算在旋转后当前画布上图片宽高
      */
     private void calcImageDisplay() {
-        if(degree == 90f || degree == 270f) {
-            imageWidthDisplay = imageHeight;
-            imageHeightDisplay = imageWidth;
-        } else {
+        if(degree % 180f == 0) {
             imageWidthDisplay = imageWidth;
             imageHeightDisplay = imageHeight;
+        } else {
+            imageWidthDisplay = imageHeight;
+            imageHeightDisplay = imageWidth;
         }
     }
 
     /**
      * 将图片放到最大或最小
      */
-    public void setMaxOrMin(boolean max) {
+    private void setMaxOrMin(boolean max, float centerX, float centerY) {
+        float newScale;
         if(max) {
-            scaleAdjust = maxScale;
+            newScale = maxScale;
         } else {
-            scaleAdjust = minScale;
+            newScale = minScale;
         }
+        if(newScale == scaleAdjust) {
+            return;
+        }
+        float rScale = newScale / scaleAdjust;
+        scaleAdjust = newScale;
+        //计算缩放后边界
+        calcBoundaries();
+        //计算缩放后新坐标
+        x = boundX(calcScaledCoordinate(centerX, x, rScale));
+        y = boundY(calcScaledCoordinate(centerY, y, rScale));
         invalidate();
     }
 
-//    /**
-//     * 获得当前头像编辑数据
-//     *
-//     * @param originalImageWidth originalImageHeight 原始图片宽高
-//     */
-//    public Bundle getAvatarEditData(int originalImageWidth, int originalImageHeight) {
-//        //Log.d(TAG, "getAvatarEditData originalImageWidth="+originalImageWidth+"originalImageHeight="+originalImageHeight);
-//        //原始图片比显示图片比例
-//        float originalWidthScale = originalImageWidth / imageWidth;
-//        float originalHeightScale = originalImageHeight / imageHeight;
-//        //未旋转时编辑框相对于drawable图片的宽高
-//        float rw = boxWidth / scaleAdjust;
-//        float rh = boxHeight / scaleAdjust;
-//        //未旋转时编辑框中点相对于drawable图片中点坐标
-//        float rx1 = (rectCenterX - x) / scaleAdjust;
-//        float ry1 = (rectCenterY - y) / scaleAdjust;
-//        //Log.d(TAG, "getAvatarEditData rx1="+rx1+" ry1="+ry1);
-//        //旋转后编辑框中点相对于图片中点的坐标与宽高
-//        float width = rw, height = rh;
-//        float rx = rx1, ry = ry1;
-//        if(degree == 90f) {
-//            width = rh;
-//            height = rw;
-//            rx = ry1;
-//            ry = -rx1;
-//        } else if(degree == 180f) {
-//            rx = -rx1;
-//            ry = -ry1;
-//        } else if(degree == 270f) {
-//            width = rh;
-//            height = rw;
-//            rx = -ry1;
-//            ry = rx1;
-//        }
-//        //Log.d(TAG, "getAvatarEditData rx="+rx+" ry="+ry);
-//        //旋转后裁剪起始点坐标
-//        float sx = rx + (imageWidth - width) / 2f;
-//        float sy = ry + (imageHeight - height) / 2f;
-//        //Log.d(TAG, "getAvatarEditData sx="+sx+" sy="+sy+" degree="+degree+" width="+width+" height="+height);
-//        //相对于原始图片参数
-//        sx /= originalWidthScale;
-//        sy /= originalHeightScale;
-//        width /= originalWidthScale;
-//        height /= originalHeightScale;
-//
-//        Bundle bundle = new Bundle();
-//        bundle.putFloat("x", sx);
-//        bundle.putFloat("y", sy);
-//        bundle.putFloat("width", width);
-//        bundle.putFloat("height", height);
-//        bundle.putFloat("degrees", degree);
-//        return bundle;
-//    }
+    /**
+     * 获取裁剪后的图片
+     * @param outWidth 目标宽度
+     * @param outHeight 目标高度
+     */
+    public Bitmap getCropBitmap(int outWidth, int outHeight) {
+        if(bitmap == null) {
+            return null;
+        }
+        //计算裁剪参数
+        //未旋转时编辑框相对于drawable图片的宽高
+        float rw = boxWidth / scaleAdjust;
+        float rh = boxHeight / scaleAdjust;
+        //未旋转时编辑框中点相对于drawable图片中点坐标
+        float rx1 = (rectCenterX - x) / scaleAdjust;
+        float ry1 = (rectCenterY - y) / scaleAdjust;
+        //Log.d(TAG, "getCropBitmap rx1="+rx1+" ry1="+ry1);
+        //旋转后编辑框中点相对于图片中点的坐标与宽高
+        float width = rw, height = rh;
+        float rx = rx1, ry = ry1;
+        if(degree == 90f) {
+            width = rh;
+            height = rw;
+            rx = ry1;
+            ry = -rx1;
+        } else if(degree == 180f) {
+            rx = -rx1;
+            ry = -ry1;
+        } else if(degree == 270f) {
+            width = rh;
+            height = rw;
+            rx = -ry1;
+            ry = rx1;
+        }
+        //Log.d(TAG, "getCropBitmap rx="+rx+" ry="+ry);
+        //旋转后裁剪起始点坐标
+        float sx = rx + (imageWidth - width) / 2f;
+        float sy = ry + (imageHeight - height) / 2f;
+        //Log.d(TAG, "getCropBitmap sx="+sx+" sy="+sy+" degree="+degree+" width="+width+" height="+height);
+
+        return ImageUtils.cropBitmap(bitmap, (int) sx, (int) sy, (int) width, (int) height, degree, outWidth, outHeight);
+    }
 
     private SimpleGestureDetector.OnGestureListener mOnGestureListener = new SimpleGestureDetector.OnGestureListener() {
 
@@ -694,10 +663,6 @@ public class SimpleCropImageView extends View {
             }
             animationStop();
             mZoomAnimation.start(x, y, zoom);
-        }
-
-        @Override
-        public void onSingleTap() {
         }
 
         @Override
@@ -848,12 +813,18 @@ public class SimpleCropImageView extends View {
 
         @Override
         protected boolean onUpdate(float fraction) {
-            float zoom = finalZoom * fraction;
+            float zoom;
+            if(finalZoom >= 1) {
+                zoom = finalZoom * fraction + 1;
+            } else {
+                zoom = (finalZoom - 1) * fraction + 1;
+            }
             float rZoom = zoom / lastZoom;
             lastZoom = zoom;
             if(fraction == 1) {
+                handleScale(centerX, centerY, rZoom);
                 //设置最终缩放
-                setMaxOrMin(finalZoom > 1);
+                setMaxOrMin(finalZoom > 1, centerX, centerY);
             } else {
                 if(handleScale(centerX, centerY, rZoom)) {
                     return true;
@@ -912,7 +883,7 @@ public class SimpleCropImageView extends View {
             this.centerY = centerY;
             this.lastAngle = 0;
             this.finalAngle = finalAngle;
-            super.start(200);
+            super.start(230);
         }
 
         @Override
